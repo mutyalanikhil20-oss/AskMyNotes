@@ -151,7 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear status message
       statusEl.textContent = "";
-
     }, 600);
   });
 });
