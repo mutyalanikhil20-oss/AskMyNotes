@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // File selected
     const filename = pdfInput.files[0].name;
-    uploadStatus.textContent = `Selected "${filename}" (ready to upload)`;
+    uploadStatus.textContent = `uploding "${filename}..." `;
     uploadStatus.className = 'text-sm text-green-400 mt-2 min-h-[1.25rem] font-medium';
   });
 });
