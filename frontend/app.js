@@ -1,18 +1,25 @@
 document.addEventListener("DOMContentLoaded", () => {
   // Existing element references
-  const questionEl   = document.querySelector("#question");
-  const askBtn       = document.querySelector("#ask-btn");
-  const statusEl     = document.querySelector("#status");
-  const answerEl     = document.querySelector("#answer");
-  const answerTextEl = document.querySelector("#answer-text");
-  const qtypePill    = document.querySelector("#type-pill");
-  const toolPill     = document.querySelector("#tool-pill");
-  const sourcesEl    = document.querySelector("#sources");
-  const sourcesListEl= document.querySelector("#sources-list");
+  const questionEl    = document.querySelector("#question");
+  const askBtn        = document.querySelector("#ask-btn");
+  const askBtnText    = document.querySelector("#ask-btn-text");
+  const askBtnSpinner = document.querySelector("#ask-btn-spinner");
+  const statusEl      = document.querySelector("#status");
+  const answerSection = document.querySelector("#answer-section");
+  const answerEl      = document.querySelector("#answer");
+  const answerTextEl  = document.querySelector("#answer-text");
+  const qtypePill     = document.querySelector("#type-pill");
+  const toolPill      = document.querySelector("#tool-pill");
+  const sourcesEl     = document.querySelector("#sources");
+  const sourcesListEl = document.querySelector("#sources-list");
 
   // Upload file elements
   const pdfInput     = document.querySelector("#pdf-input");
+  const filePreview  = document.querySelector("#file-preview");
+  const fileCountEl  = document.querySelector("#file-count");
+  const fileListEl   = document.querySelector("#file-list");
   const uploadStatus = document.querySelector("#upload-status");
+  let selectedFiles = [];
 
   // Color mapping for question type pills
   const QTYPE_COLORS = {
@@ -23,7 +30,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ── Helper: reset answer UI to hidden/empty state ─────────────────────────
   function resetAnswerUI() {
-    // Hide answer panel
+    // Hide answer section and answer box
+    answerSection.classList.add("hidden");
     answerEl.classList.add("hidden");
 
     // Clear answer text
@@ -47,18 +55,97 @@ document.addEventListener("DOMContentLoaded", () => {
   pdfInput.addEventListener("change", handleUpload);
 
   function handleUpload() {
-    const file = pdfInput.files[0];
-    if (!file) return;
-    uploadStatus.textContent = `Uploading ${file.name}...`;
+    const newFiles = Array.from(pdfInput.files);
+    if (!newFiles.length) {
+      clearFilePreview();
+      return;
+    }
+
+    pdfInput.classList.remove("opacity-70");
+    pdfInput.classList.add("opacity-100");
+
+    newFiles.forEach((file) => {
+      const alreadyAdded = selectedFiles.some(
+        (existing) => existing.name === file.name && existing.size === file.size && existing.type === file.type
+      );
+      if (!alreadyAdded) {
+        selectedFiles.push(file);
+      }
+    });
+
+    syncInputFiles();
+    updateFileList(selectedFiles);
+    uploadStatus.textContent = `Selected ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`;
     uploadStatus.className = "text-sm text-slate-500";
-    const fd = new FormData();
-    fd.append("file", file);
-    // No real backend — upload simulation only
+  }
+
+  function updateFileList(files) {
+    filePreview.classList.remove("hidden");
+    fileCountEl.textContent = `${files.length} item${files.length > 1 ? "s" : ""}`;
+    fileListEl.innerHTML = "";
+
+    files.forEach((file, index) => {
+      const listItem = document.createElement("li");
+      listItem.className =
+        "flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3";
+
+      const fileInfo = document.createElement("div");
+      fileInfo.className = "flex items-center gap-3 min-w-0";
+
+      const fileIcon = document.createElement("span");
+      fileIcon.className = "text-lg";
+      fileIcon.textContent = "📄";
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "text-sm text-slate-700 truncate";
+      nameSpan.textContent = file.name;
+
+      fileInfo.append(fileIcon, nameSpan);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className =
+        "text-slate-500 hover:text-slate-900 font-semibold rounded-full px-2 py-1 transition-all duration-200";
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", () => removeFile(index));
+
+      listItem.append(fileInfo, removeBtn);
+      fileListEl.appendChild(listItem);
+    });
+  }
+
+  function removeFile(removeIndex) {
+    selectedFiles = selectedFiles.filter((_, index) => index !== removeIndex);
+    syncInputFiles();
+
+    if (selectedFiles.length) {
+      updateFileList(selectedFiles);
+      uploadStatus.textContent = `Selected ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`;
+    } else {
+      clearFilePreview();
+    }
+  }
+
+  function syncInputFiles() {
+    const dataTransfer = new DataTransfer();
+    selectedFiles.forEach((file) => dataTransfer.items.add(file));
+    pdfInput.files = dataTransfer.files;
+  }
+
+  function clearFilePreview() {
+    selectedFiles = [];
+    pdfInput.value = "";
+    pdfInput.classList.remove("opacity-100");
+    pdfInput.classList.add("opacity-70");
+    filePreview.classList.add("hidden");
+    fileListEl.innerHTML = "";
+    fileCountEl.textContent = "";
+    uploadStatus.textContent = "No file uploaded yet.";
+    uploadStatus.className = "text-sm text-slate-500 mt-3 font-medium";
   }
 
   // ── Submit handler ─────────────────────────────────────────────────────────
-  askBtn.addEventListener("click", () => {
-
+  function submitQuestion() {
     // Step 1 — Read and validate input
     const rawValue = questionEl.value;
     const question = rawValue.trim();
@@ -72,8 +159,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Step 2 — Show loading state
     resetAnswerUI();
-    statusEl.textContent = "Thinking...";
-    statusEl.className   = "text-sm text-gray-500 mt-2 min-h-[1.25rem]";
+    askBtn.disabled = true;
+    askBtnText.textContent = "Loading...";
+    askBtnSpinner.classList.remove("hidden");
+    askBtn.classList.remove("bg-sky-600", "hover:bg-sky-500");
+    askBtn.classList.add("bg-slate-400", "cursor-not-allowed");
+
+    answerSection.classList.remove("hidden");
+    answerEl.classList.remove("hidden");
+    answerTextEl.textContent = "Thinking...";
+    answerTextEl.classList.remove("italic");
+
+    statusEl.textContent = "";
 
     // Step 3 — Simulate backend delay (ONE setTimeout, 600ms)
     setTimeout(() => {
@@ -146,11 +243,26 @@ document.addEventListener("DOMContentLoaded", () => {
         if (sourcesEl) sourcesEl.classList.remove("hidden");
       }
 
-      // Reveal answer panel
+      // Reveal answer section and answer box
+      answerSection.classList.remove("hidden");
       answerEl.classList.remove("hidden");
 
       // Clear status message
       statusEl.textContent = "";
+      askBtn.disabled = false;
+      askBtnText.textContent = "Ask AI";
+      askBtnSpinner.classList.add("hidden");
+      askBtn.classList.add("bg-sky-600", "hover:bg-sky-500");
+      askBtn.classList.remove("bg-slate-400", "cursor-not-allowed");
+      answerTextEl.classList.add("italic");
     }, 600);
+  }
+
+  askBtn.addEventListener("click", submitQuestion);
+  questionEl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      submitQuestion();
+    }
   });
 });

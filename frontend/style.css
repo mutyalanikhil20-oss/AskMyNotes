@@ -1,0 +1,17 @@
+body {
+  font-family: "Poppins", sans-serif;
+  color: #1f2937;
+  background-color: #f8fafc;
+}
+
+/* Animated background */
+.bg-animation {
+  background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+}
+
+/* Glass effect */
+.glass {
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+}
